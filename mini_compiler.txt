@@ -1,0 +1,32 @@
+// ============================================================
+// 7. MAIN DRIVER
+// ============================================================
+
+int main() {
+    // Sample program (you can replace this with any valid program)
+    string sourceCode =
+        "int x;   "
+        "int y;   "
+        "x = 10;  "
+        "y = x + 5; "
+        "print(y);";
+
+    cout << "===== SOURCE CODE =====\n" << sourceCode << endl;
+
+    // Phase 1-4: Lexical, Syntax, Semantic, TAC Generation
+    Parser parser(sourceCode);
+    parser.compile();
+
+    // Get TAC and symbol table
+    vector<TAC> tac = parser.getTAC();
+    SymbolTable symTab = parser.getSymbolTable();
+
+    // Phase 5: Optimization
+    optimizeTAC(tac);
+
+    // Phase 6: Target Code Generation
+    generateTargetCode(tac, symTab);
+
+    cout << "\n===== COMPILATION SUCCESSFUL =====\n";
+    return 0;
+}
