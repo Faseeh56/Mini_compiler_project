@@ -1,0 +1,41 @@
+// ============================================================
+// 6. TARGET CODE GENERATION
+// ============================================================
+
+void generateTargetCode(const vector<TAC>& tac, const SymbolTable& symTab) {
+    cout << "\n===== TARGET CODE GENERATION =====\n";
+    cout << "Generated assembly-like instructions:\n";
+    for (const auto& instr : tac) {
+        if (instr.op == "PRINT") {
+            cout << "  PRINT " << instr.arg1 << endl;
+        }
+        else if (instr.op == "=" || instr.op == "COPY") {
+            // For assignment: if arg1 is number, load immediate
+            bool isNum = true;
+            for (char c : instr.arg1) if (!isdigit(c)) { isNum = false; break; }
+            if (isNum) {
+                cout << "  MOV R1, " << instr.arg1 << endl;
+            } else {
+                cout << "  LOAD R1, " << instr.arg1 << endl;
+            }
+            cout << "  STORE R1, " << instr.result << endl;
+        }
+        else if (instr.op == "+" || instr.op == "-" || instr.op == "*" || instr.op == "/") {
+            // Binary operation: we assume operands are in memory locations
+            // For simplicity, we load first operand into R1, second into R2, do op, store result.
+            cout << "  LOAD R1, " << instr.arg1 << endl;
+            cout << "  LOAD R2, " << instr.arg2 << endl;
+            string asm_op;
+            if (instr.op == "+") asm_op = "ADD";
+            else if (instr.op == "-") asm_op = "SUB";
+            else if (instr.op == "*") asm_op = "MUL";
+            else if (instr.op == "/") asm_op = "DIV";
+            cout << "  " << asm_op << " R1, R2" << endl;
+            cout << "  STORE R1, " << instr.result << endl;
+        }
+        else {
+            // Should not happen
+            cout << "  ; Unknown instruction: " << instr.op << endl;
+        }
+    }
+}
