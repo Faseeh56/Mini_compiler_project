@@ -1,0 +1,165 @@
+
+// 4. PARSER (Syntax + Semantic + Intermediate Code Generation)
+
+
+class Parser {
+    Lexer lexer;
+    Token current;
+    SymbolTable symTab;
+    vector<TAC> tacList;
+    int tempCounter;
+
+    // Helper to get next token
+    void advance() {
+        current = lexer.nextToken();
+    }
+
+    // Error reporting
+    void error(const string& msg) {
+        cout << "Syntax/Semantic Error at line " << current.line << ": " << msg << endl;
+        // In a real compiler we might recover; here we simply exit.
+        exit(1);
+    }
+
+    // Match expected token; if not, error.
+    void expect(TokenType type, const string& errMsg) {
+        if (current.type != type)
+            error(errMsg);
+        advance();
+    }
+
+    // Generate a new temporary variable name
+    string newTemp() {
+        return "t" + to_string(tempCounter++);
+    }
+
+    // ----- Grammar rules -----
+
+    // Factor -> IDENTIFIER | NUMBER
+    string parseFactor() {
+        if (current.type == TOK_IDENTIFIER) {
+            string id = current.lexeme;
+            // Semantic check: variable must be declared
+            if (!symTab.isDeclared(id))
+                error("Undeclared variable '" + id + "'");
+            advance();
+            return id;
+        }
+        else if (current.type == TOK_NUMBER) {
+            string num = current.lexeme;
+            advance();
+            return num;
+        }
+        else {
+            error("Expected identifier or number");
+            return "";
+        }
+    }
+
+    // Term -> Factor ( ('*' | '/') Factor )*
+    string parseTerm() {
+        string left = parseFactor();
+        while (current.type == TOK_STAR || current.type == TOK_SLASH) {
+            TokenType op = current.type;
+            string opStr = (op == TOK_STAR) ? "*" : "/";
+            advance();
+            string right = parseFactor();
+            // Generate TAC: temp = left op right
+            string temp = newTemp();
+            tacList.push_back(TAC(opStr, left, right, temp));
+            left = temp;
+        }
+        return left;
+    }
+
+    // Expression -> Term ( ('+' | '-') Term )*
+    string parseExpression() {
+        string left = parseTerm();
+        while (current.type == TOK_PLUS || current.type == TOK_MINUS) {
+            TokenType op = current.type;
+            string opStr = (op == TOK_PLUS) ? "+" : "-";
+            advance();
+            string right = parseTerm();
+            string temp = newTemp();
+            tacList.push_back(TAC(opStr, left, right, temp));
+            left = temp;
+        }
+        return left;
+    }
+
+    // Statement -> Declaration | Assignment | Print
+    void parseStatement() {
+        if (current.type == TOK_INT) {
+            // Declaration: int IDENTIFIER ;
+            advance(); // consume 'int'
+            if (current.type != TOK_IDENTIFIER)
+                error("Expected identifier after 'int'");
+            string id = current.lexeme;
+            advance();
+            expect(TOK_SEMICOLON, "Expected ';' after declaration");
+            // Semantic: declare variable (if not already declared)
+            if (symTab.isDeclared(id))
+                error("Variable '" + id + "' already declared");
+            symTab.declare(id);
+        }
+        else if (current.type == TOK_IDENTIFIER) {
+            // Assignment: IDENTIFIER = Expression ;
+            string id = current.lexeme;
+            // Semantic: variable must be declared
+            if (!symTab.isDeclared(id))
+                error("Undeclared variable '" + id + "' in assignment");
+            advance();
+            expect(TOK_ASSIGN, "Expected '=' after identifier");
+            string expr = parseExpression();
+            expect(TOK_SEMICOLON, "Expected ';' after assignment");
+            // TAC: store result of expression into variable
+            tacList.push_back(TAC("=", expr, "", id));
+        }
+        else if (current.type == TOK_PRINT) {
+            // Print: print ( IDENTIFIER ) ;
+            advance(); // consume 'print'
+            expect(TOK_LPAREN, "Expected '(' after 'print'");
+            if (current.type != TOK_IDENTIFIER)
+                error("Expected identifier in print statement");
+            string id = current.lexeme;
+            if (!symTab.isDeclared(id))
+                error("Undeclared variable '" + id + "' in print");
+            advance();
+            expect(TOK_RPAREN, "Expected ')' after identifier");
+            expect(TOK_SEMICOLON, "Expected ';' after print");
+            // TAC: print the variable
+            tacList.push_back(TAC("PRINT", id, "", ""));
+        }
+        else {
+            error("Unexpected token '" + current.lexeme + "'");
+        }
+    }
+
+    // Program -> Statement*
+    void parseProgram() {
+        advance(); // prime the lexer
+        while (current.type != TOK_EOF) {
+            parseStatement();
+        }
+    }
+
+public:
+    Parser(const string& src) : lexer(src), current(TOK_ERROR, ""), tempCounter(1) {}
+
+    void compile() {
+        cout << "\n===== PARSING (Syntax + Semantic + TAC Generation) =====\n";
+        parseProgram();
+        cout << "Parsing successful. No syntax/semantic errors.\n";
+        symTab.print();
+        cout << "\nGenerated Three-Address Code (TAC):\n";
+        for (size_t i = 0; i < tacList.size(); ++i) {
+            cout << "  ";
+            tacList[i].print();
+            cout << endl;
+        }
+    }
+
+    // Expose TAC and symbol table for later phases
+    vector<TAC>& getTAC() { return tacList; }
+    SymbolTable& getSymbolTable() { return symTab; }
+};
