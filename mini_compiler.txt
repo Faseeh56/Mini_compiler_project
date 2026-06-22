@@ -1,0 +1,88 @@
+// ============================================================
+// 1. LEXICAL ANALYZER
+// ============================================================
+
+// Token types
+enum TokenType {
+    TOK_INT,        // "int"
+    TOK_PRINT,      // "print"
+    TOK_IDENTIFIER,
+    TOK_NUMBER,
+    TOK_ASSIGN,     // '='
+    TOK_PLUS,       // '+'
+    TOK_MINUS,      // '-'
+    TOK_STAR,       // '*'
+    TOK_SLASH,      // '/'
+    TOK_SEMICOLON,  // ';'
+    TOK_LPAREN,     // '('
+    TOK_RPAREN,     // ')'
+    TOK_EOF,
+    TOK_ERROR
+};
+
+// Token structure
+struct Token {
+    TokenType type;
+    string lexeme;
+    int line;       // for error reporting (optional)
+
+    Token(TokenType t = TOK_ERROR, const string& l = "", int ln = 1)
+        : type(t), lexeme(l), line(ln) {}
+};
+
+// Lexer class
+class Lexer {
+    string input;
+    size_t pos;
+    int line;
+public:
+    Lexer(const string& src) : input(src), pos(0), line(1) {}
+
+    Token nextToken() {
+        // Skip whitespace
+        while (pos < input.size() && isspace(input[pos])) {
+            if (input[pos] == '\n') line++;
+            pos++;
+        }
+
+        if (pos >= input.size())
+            return Token(TOK_EOF, "EOF", line);
+
+        char ch = input[pos];
+
+        // Identifiers and keywords
+        if (isalpha(ch)) {
+            size_t start = pos;
+            while (pos < input.size() && (isalnum(input[pos]) || input[pos] == '_'))
+                pos++;
+            string lex = input.substr(start, pos - start);
+            if (lex == "int") return Token(TOK_INT, lex, line);
+            if (lex == "print") return Token(TOK_PRINT, lex, line);
+            return Token(TOK_IDENTIFIER, lex, line);
+        }
+
+        // Numbers
+        if (isdigit(ch)) {
+            size_t start = pos;
+            while (pos < input.size() && isdigit(input[pos]))
+                pos++;
+            string lex = input.substr(start, pos - start);
+            return Token(TOK_NUMBER, lex, line);
+        }
+
+        // Single-character operators and delimiters
+        pos++;
+        switch (ch) {
+            case '=': return Token(TOK_ASSIGN, "=", line);
+            case '+': return Token(TOK_PLUS, "+", line);
+            case '-': return Token(TOK_MINUS, "-", line);
+            case '*': return Token(TOK_STAR, "*", line);
+            case '/': return Token(TOK_SLASH, "/", line);
+            case ';': return Token(TOK_SEMICOLON, ";", line);
+            case '(': return Token(TOK_LPAREN, "(", line);
+            case ')': return Token(TOK_RPAREN, ")", line);
+            default:
+                return Token(TOK_ERROR, string(1, ch), line);
+        }
+    }
+};
